@@ -1,5 +1,5 @@
 # Created by JefKaz
-# Version 2015.07.08.01
+# Version 2015.11.22.01
 
 <#
 .Synopsis
@@ -824,7 +824,15 @@ function New-MIMPortalQuickStart
 		Write-Host "Ending Step 2 - MIM Portal Core Services Creation..." -ForegroundColor DarkGreen
 
 		Write-Host "Beginning Step 3 - MIM Portal Web App Creation..." -ForegroundColor Green
-		New-MIMSPWebApp -AppPoolAccountName $AppPoolAccountName -AppPoolName $AppPoolName -PortalUrl $PortalUrl -HostHeader $HostHeader -AppName $AppName -AppPort $AppPort -OwnerEmail $OwnerEmail -OwnerAccountName $OwnerAccountName -ContentDBName $ContentDBName
+
+		if ($useAppSSL)
+		{
+			New-MIMSPWebApp -AppPoolAccountName $AppPoolAccountName -AppPoolName $AppPoolName -PortalUrl $PortalUrl -HostHeader $HostHeader -AppName $AppName -AppPort $AppPort -OwnerEmail $OwnerEmail -OwnerAccountName $OwnerAccountName -ContentDBName $ContentDBName -UseAppSSL
+		}
+		else
+		{
+			New-MIMSPWebApp -AppPoolAccountName $AppPoolAccountName -AppPoolName $AppPoolName -PortalUrl $PortalUrl -HostHeader $HostHeader -AppName $AppName -AppPort $AppPort -OwnerEmail $OwnerEmail -OwnerAccountName $OwnerAccountName -ContentDBName $ContentDBName
+		}
 		Write-Host "Ending Step 3 - MIM Portal Web App Creation..." -ForegroundColor DarkGreen
 
 		Write-Host "Beginning Step 4 - MIM Portal Enabling Kerberos on Portal..." -ForegroundColor Green
