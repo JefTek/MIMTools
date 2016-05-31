@@ -985,14 +985,14 @@ function Get-MIMExportLogDeltas
 					
                     $FilteredLog.mmsml."directory-entries".delta|? {$_.attr.name -eq $Attribute}|%{$DN=$_.dn;$objectModType=$_.operation;$scoped=($_.attr|? Name -eq $Attribute);$AttributeModificationType=$scoped.operation;$Add=($_.attr|? {$_.name -eq $Attribute -and $_.operation -eq 'add'}).Value;`
                     $Before=(($_.attr|? {$_.name -eq $Attribute -and $_.operation -eq 'update'}).value|? Operation -eq 'delete')."#text";$After=(($_.attr|`
-                    ? {$_.name -eq $Attribute -and $_.operation -eq 'update'}).value|? Operation -eq 'add')."#text";$Delete="";$go=[pscustomobject][ordered]@{DN=$dn;ObjectModificationType=$ObjectModType;AttributeModificationType=$AttributeModificationType;AttributeType=$AttributeScope;AttributeAdded=$add -join ';';AttributeUpdateBefore=$Before -join ';';AttributeUpdateAfter=$After -join ';';AttributeDeleted=$Delete -join ';'};Write-Output $go}
+                    ? {$_.name -eq $Attribute -and $_.operation -eq 'update'}).value|? Operation -eq 'add')."#text";$Delete="";$go=[pscustomobject][ordered]@{DN=$dn;ObjectModificationType=$ObjectModType;AttributeName=$attribute;AttributeModificationType=$AttributeModificationType;AttributeType=$AttributeScope;AttributeAdded=$add -join ';';AttributeUpdateBefore=$Before -join ';';AttributeUpdateAfter=$After -join ';';AttributeDeleted=$Delete -join ';'};Write-Output $go}
                  }
         
          "Reference"{
         
                     $FilteredLog.mmsml."directory-entries".delta|? {$_."dn-attr".name -eq "$Attribute"}|%{$DN=$_.dn;$objectModType=$_.operation;$scoped=($_."dn-attr"|? Name -eq "$Attribute");$AttributeModificationType=$scoped.operation;$Add=($_."dn-attr"|? {$_.name -eq "$attribute" -and $_.operation -eq 'add'}).Value;`
                     $Before=(($_."dn-attr"|? {$_.name -eq "$Attribute" -and $_.operation -eq 'update'}).value|? Operation -eq 'delete')."#text";$After=(($_."dn-attr"|`
-                    ? {$_.name -eq "$attribute" -and $_.operation -eq 'update'}).value|? Operation -eq 'add')."#text";$Delete="";$go=[pscustomobject][ordered]@{DN=$dn;ObjectModificationType=$ObjectModType;AttributeModificationType=$AttributeModificationType;AttributeType=$AttributeScope;AttributeAdded=$add -join ';';AttributeUpdateBefore=$Before -join ';';AttributeUpdateAfter=$After -join ';';AttributeDeleted=$Delete -join ';'};write-output $go}
+                    ? {$_.name -eq "$attribute" -and $_.operation -eq 'update'}).value|? Operation -eq 'add')."#text";$Delete="";$go=[pscustomobject][ordered]@{DN=$dn;ObjectModificationType=$ObjectModType;AttributeName=$attribute;AttributeModificationType=$AttributeModificationType;AttributeType=$AttributeScope;AttributeAdded=$add -join ';';AttributeUpdateBefore=$Before -join ';';AttributeUpdateAfter=$After -join ';';AttributeDeleted=$Delete -join ';'};write-output $go}
                  }
 
 		 "All"{
@@ -1003,12 +1003,12 @@ function Get-MIMExportLogDeltas
 					$referenceAttr|%{
 			        $FilteredLog.mmsml."directory-entries".delta|? {$_."dn-attr".name -eq "$Attribute"}|%{$DN=$_.dn;$objectModType=$_.operation;$scoped=($_."dn-attr"|? Name -eq "$Attribute");$AttributeModificationType=$scoped.operation;$Add=($_."dn-attr"|? {$_.name -eq "$attribute" -and $_.operation -eq 'add'}).Value;`
                     $Before=(($_."dn-attr"|? {$_.name -eq "$Attribute" -and $_.operation -eq 'update'}).value|? Operation -eq 'delete')."#text";$After=(($_."dn-attr"|`
-                    ? {$_.name -eq "$attribute" -and $_.operation -eq 'update'}).value|? Operation -eq 'add')."#text";$Delete="";$go=[pscustomobject][ordered]@{DN=$dn;ObjectModificationType=$ObjectModType;AttributeModificationType=$AttributeModificationType;AttributeType="Reference";AttributeAdded=$add -join ';';AttributeUpdateBefore=$Before -join ';';AttributeUpdateAfter=$After -join ';';AttributeDeleted=$Delete -join ';'};write-output $go}}
+                    ? {$_.name -eq "$attribute" -and $_.operation -eq 'update'}).value|? Operation -eq 'add')."#text";$Delete="";$go=[pscustomobject][ordered]@{DN=$dn;ObjectModificationType=$ObjectModType;AttributeName=$attribute;AttributeModificationType=$AttributeModificationType;AttributeType="Reference";AttributeAdded=$add -join ';';AttributeUpdateBefore=$Before -join ';';AttributeUpdateAfter=$After -join ';';AttributeDeleted=$Delete -join ';'};write-output $go}}
 
 					$singleAttr|%{
 			        $FilteredLog.mmsml."directory-entries".delta|? {$_.attr.name -eq $Attribute}|%{$DN=$_.dn;$objectModType=$_.operation;$scoped=($_.attr|? Name -eq $Attribute);$AttributeModificationType=$scoped.operation;$Add=($_.attr|? {$_.name -eq $Attribute -and $_.operation -eq 'add'}).Value;`
                     $Before=(($_.attr|? {$_.name -eq $Attribute -and $_.operation -eq 'update'}).value|? Operation -eq 'delete')."#text";$After=(($_.attr|`
-                    ? {$_.name -eq $Attribute -and $_.operation -eq 'update'}).value|? Operation -eq 'add')."#text";$Delete="";$go=[pscustomobject][ordered]@{DN=$dn;ObjectModificationType=$ObjectModType;AttributeModificationType=$AttributeModificationType;AttributeType="Single";AttributeAdded=$add -join ';';AttributeUpdateBefore=$Before -join ';';AttributeUpdateAfter=$After -join ';';AttributeDeleted=$Delete -join ';'};Write-Output $go}}
+                    ? {$_.name -eq $Attribute -and $_.operation -eq 'update'}).value|? Operation -eq 'add')."#text";$Delete="";$go=[pscustomobject][ordered]@{DN=$dn;ObjectModificationType=$ObjectModType;AttributeName=$attribute;AttributeModificationType=$AttributeModificationType;AttributeType="Single";AttributeAdded=$add -join ';';AttributeUpdateBefore=$Before -join ';';AttributeUpdateAfter=$After -join ';';AttributeDeleted=$Delete -join ';'};Write-Output $go}}
 
 		 }
      }
