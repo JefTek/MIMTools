@@ -912,14 +912,14 @@ function Get-MIMExportLogDeltas
                    ValueFromPipelineByPropertyName=$true,
                    Position=1)]
         [string]
-        $Attribute,
+        $AttributeName,
 
          [Parameter(Mandatory=$false,
                    ValueFromPipelineByPropertyName=$true,
                    Position=2)]
         [string]
         [ValidateSet("All","Value","ReferenceValue")]
-        $AttributeScope = "Value",
+        $AttributeCategory = "Value",
 
 		[string]
         [ValidateSet("All","Create","Update","Delete")]
@@ -954,7 +954,7 @@ function Get-MIMExportLogDeltas
 		}
 
 
-    If ($AnalyzeOnly)
+    If ($AnalyzeOnly -or $AnalyzeAttributeNamesOnly)
     {
 	    write-verbose "Analyzing File..."
         $valueAttr = $Null
@@ -963,29 +963,29 @@ function Get-MIMExportLogDeltas
         if ($AnalyzeAttributeNamesOnly)
         {
         
-         $valueAttr = $filteredLog.mmsml."Directory-entries".delta."attr"|group name|select count,name,@{n="AttributeScope";e={"Value"}}
-         $referenceValueAttr = $filteredLog.mmsml."Directory-entries".delta."dn-attr"|group name|select count,name,@{n="AttributeScope";e={"ReferenceValue"}}
+         $valueAttr = $filteredLog.mmsml."Directory-entries".delta."attr"|group name|select count,name,@{n="AttributeCategory";e={"Value"}}
+         $referenceValueAttr = $filteredLog.mmsml."Directory-entries".delta."dn-attr"|group name|select count,name,@{n="AttributeCategory";e={"ReferenceValue"}}
 
          }
          else
          {
         
-         $valueAttr = $filteredLog.mmsml."Directory-entries".delta."attr"|select name,@{n='operation';e={if($_.operation -like $null){"objectAdd"}else{$_.operation}}}|group name,operation|select count,name,@{n="AttributeScope";e={"Value"}}
-         $referenceValueAttr = $filteredLog.mmsml."Directory-entries".delta."dn-attr"|select name,@{n='operation';e={if($_.operation -like $null){"objectAdd"}else{$_.operation}}}|group name,operation|select count,name,@{n="AttributeScope";e={"ReferenceValue"}}
+         $valueAttr = $filteredLog.mmsml."Directory-entries".delta."attr"|select name,@{n='operation';e={if($_.operation -like $null){"objectAdd"}else{$_.operation}}}|group name,operation|select count,name,@{n="AttributeCategory";e={"Value"}}
+         $referenceValueAttr = $filteredLog.mmsml."Directory-entries".delta."dn-attr"|select name,@{n='operation';e={if($_.operation -like $null){"objectAdd"}else{$_.operation}}}|group name,operation|select count,name,@{n="AttributeCategory";e={"ReferenceValue"}}
          }
+		
+		$attrAnalysis = @()
+		$attrAnalysis = $attrAnalysis + $valueAttr
+         $attrAnalysis = $attrAnalysis + $referenceValueAttr
      
-            $attrAnalysis = $valueAttr + $referenceValueAttr
-     
-       
-     
-         Write-Output $attrAnalysis
+         Write-Output $attrAnalysis|sort name
     }
     else
     {
-        Write-Verbose ("Checking changes for the {0} Attribute" -f $Attribute)  
+        
 
 
-     switch ($AttributeScope)
+     switch ($AttributeCategory)
      {
 
       
@@ -994,27 +994,31 @@ function Get-MIMExportLogDeltas
 					$valueAttributes = $filteredLog.mmsml."directory-entries".delta.attr.name|select -Unique
         
 					
-                    $FilteredLog.mmsml."directory-entries".delta|? {$_.attr.name -eq $Attribute}|%{
+					$AttributeScopedLog = $FilteredLog.mmsml."directory-entries".delta|? {$_.attr.name -eq $AttributeName}
+					Write-Verbose ("Checking changes for the {0} Attribute - {1} Found" -f $AttributeName,($AttributeScopedLog.count))  
+                    $AttributeScopedLog|%{
                                 $DN=$_.dn;`
                                 $primaryObjectClass=$_.'primary-objectclass';`
+								$ObjectClass=$_.objectclass.'oc-value';
                                 $objectModType=$_.operation;`
-                                $scopedQuery=($_.attr|? Name -eq $Attribute);`
-                                $AttributeModificationType=(if($scopedQuery.operation -like $null){"objectAdd"}else{$scopedQuery.operation});`
+                                $scopedQuery=($_.attr|? Name -eq $AttributeName);`
+                                $AttributeModificationType=$(if ($scopedQuery.operation -like $null){"objectAdd"}else{$scopedQuery.operation});`
                                 $AttributeType= $scopedQuery.type;`
                                 $AttributeMultiValued=$scopedQuery.multivalued;`
-                                $Add=($_.attr|? {$_.name -eq $Attribute -and $_.operation -eq 'add'}).value;`
+                                $Add=($_.attr|? {$_.name -eq $AttributeName -and ($_.operation -eq 'add' -or $_.operation -like $null)}).value;`
                                 $AttributeValueOperation=$scopedQuery.value.operation;
-                                $Before=(($_.attr|? {$_.name -eq $Attribute -and $_.operation -eq 'update'}).value|? Operation -eq 'delete').'#text';
-                                $After=(($_.attr|? {$_.name -eq $Attribute -and $_.operation -eq 'update'}).value|? Operation -eq 'add').'#text';
+                                $Before=(($_.attr|? {$_.name -eq $AttributeName -and $_.operation -eq 'update'}).value|? Operation -eq 'delete').'#text';
+                                $After=(($_.attr|? {$_.name -eq $AttributeName -and $_.operation -eq 'update'}).value|? Operation -eq 'add').'#text';
                                 $Delete="";`
                                 $go=[pscustomobject][ordered]@{DN=$dn;
                                                                PrimaryObjectClass=$primaryObjectClass;
+															   ObjectClass=$ObjectClass;
                                                                ObjectModificationType=$ObjectModType;
-                                                               AttributeName=$attribute;
+                                                               AttributeName=$attributeName;
                                                                AttributeType=$AttributeType;
                                                                AttributeMultiValued=$AttributeMultivalued
                                                                AttributeModificationType=$AttributeModificationType;
-                                                               AttributeScope=$AttributeScope;
+                                                               AttributeCategory=$AttributeCategory;
                                                                AttributeValueOperation=$AttributeValueOperation -join ';';
                                                                AttributeAdded=$add -join ';';
                                                                AttributeUpdateBefore=$Before -join ';';
@@ -1026,28 +1030,32 @@ function Get-MIMExportLogDeltas
         
          "ReferenceValue"{
         
+							$AttributeScopedLog = $FilteredLog.mmsml."directory-entries".delta|? {$_.'dn-attr'.name -eq $AttributeName}
+					Write-Verbose ("Checking changes for the {0} Attribute - {1} Found" -f $AttributeName,($AttributeScopedLog.count))  
                     
-                    $FilteredLog.mmsml."directory-entries".delta|? {$_.'dn-attr'.name -eq $Attribute}|%{
+                    $AttributeScopedLog|%{
                                 $DN=$_.dn;`
                                 $primaryObjectClass=$_.'primary-objectclass';`
+						        $ObjectClass=$_.objectclass.'oc-value';
                                 $objectModType=$_.operation;`
-                                $scopedQuery=($_.'dn-attr'|? Name -eq $Attribute);`
-                                $AttributeModificationType=(if($scopedQuery.operation -like $null){"objectAdd"}else{$scopedQuery.operation});`
+                                $scopedQuery=($_.'dn-attr'|? Name -eq $AttributeName);`
+                                $AttributeModificationType=$( if($scopedQuery.operation -like $null){"objectAdd"}else{$scopedQuery.operation});`
                                 $AttributeType= "reference";`
                                 $AttributeMultiValued=$scopedQuery.multivalued;`
-                                $Add=($_.'dn-attr'|? {$_.name -eq $Attribute -and $_.operation -eq 'add'}).'dn-value';`
-                                $AttributeValueOperation=$scopedQuery.'dn-value'.operation;`
-                                $Before=(($_.'dn-attr'|? {$_.name -eq $Attribute -and $_.operation -eq 'update'}).'dn-value'|? Operation -eq 'delete').dn;
-                                $After=(($_.'dn-attr'|? {$_.name -eq $Attribute -and $_.operation -eq 'update'}).'dn-value'|? Operation -eq 'add').dn;
+                                $Add=($_.'dn-attr'|? {$_.name -eq $AttributeName -and ($_.operation -eq 'add' -or $_.operation -like $null)}).'dn-value'.dn;`
+                                $AttributeValueOperation=$scopedQuery.'dn-attr'.operation;`
+                                $Before=(($_.'dn-attr'|? {$_.name -eq $AttributeName -and $_.operation -eq 'update'}).'dn-value'|? Operation -eq 'delete').dn;
+                                $After=(($_.'dn-attr'|? {$_.name -eq $AttributeName -and $_.operation -eq 'update'}).'dn-value'|? Operation -eq 'add').dn;
                                 $Delete="";`
                                 $go=[pscustomobject][ordered]@{DN=$dn;
                                                                PrimaryObjectClass=$primaryObjectClass;
+															   ObjectClass=$ObjectClass;
                                                                ObjectModificationType=$ObjectModType;
-                                                               AttributeName=$attribute;
+                                                               AttributeName=$attributeName;
                                                                AttributeType=$AttributeType;
                                                                AttributeMultiValued=$AttributeMultivalued
                                                                AttributeModificationType=$AttributeModificationType;
-                                                               AttributeScope=$AttributeScope;
+                                                               AttributeCategory=$AttributeCategory;
                                                                AttributeValueOperation=$AttributeValueOperation -join ';';
                                                                AttributeAdded=$add -join ';';
                                                                AttributeUpdateBefore=$Before -join ';';
@@ -1066,27 +1074,27 @@ function Get-MIMExportLogDeltas
 				$valueAttributes = $filteredLog.mmsml."directory-entries".delta.attr.name|select -Unique
         
 					
-                    $FilteredLog.mmsml."directory-entries".delta|? {$_.attr.name -eq $Attribute}|%{
+                    $FilteredLog.mmsml."directory-entries".delta|? {$_.attr.name -eq $AttributeName}|%{
                                 $DN=$_.dn;`
                                 $primaryObjectClass=$_.'primary-objectclass';`
                                 $objectModType=$_.operation;`
-                                $scopedQuery=($_.attr|? Name -eq $Attribute);`
-                                $AttributeModificationType=(if($scopedQuery.operation -like $null){"objectAdd"}else{$scopedQuery.operation});`
+                                $scopedQuery=($_.attr|? Name -eq $AttributeName);`
+                                $AttributeModificationType=$(if ($scopedQuery.operation -like $null){"objectAdd"}else{$scopedQuery.operation});`
                                 $AttributeType= $scopedQuery.type;`
                                 $AttributeMultiValued=$scopedQuery.multivalued;`
-                                $Add=($_.attr|? {$_.name -eq $Attribute -and $_.operation -eq 'add'}).value;`
+                                $Add=($_.attr|? {$_.name -eq $AttributeName -and $_.operation -eq 'add'}).value;`
                                 $AttributeValueOperation=$scopedQuery.value.operation;
-                                $Before=(($_.attr|? {$_.name -eq $Attribute -and $_.operation -eq 'update'}).value|? Operation -eq 'delete').'#text';
-                                $After=(($_.attr|? {$_.name -eq $Attribute -and $_.operation -eq 'update'}).value|? Operation -eq 'add').'#text';
+                                $Before=(($_.attr|? {$_.name -eq $AttributeName -and $_.operation -eq 'update'}).value|? Operation -eq 'delete').'#text';
+                                $After=(($_.attr|? {$_.name -eq $AttributeName -and $_.operation -eq 'update'}).value|? Operation -eq 'add').'#text';
                                 $Delete="";`
                                 $go=[pscustomobject][ordered]@{DN=$dn;
                                                                PrimaryObjectClass=$primaryObjectClass;
                                                                ObjectModificationType=$ObjectModType;
-                                                               AttributeName=$attribute;
+                                                               AttributeName=$attributeName;
                                                                AttributeType=$AttributeType;
                                                                AttributeMultiValued=$AttributeMultivalued
                                                                AttributeModificationType=$AttributeModificationType;
-                                                               AttributeScope=$AttributeScope;
+                                                               AttributeCategory=$AttributeCategory;
                                                                AttributeValueOperation=$AttributeValueOperation -join ';';
                                                                AttributeAdded=$add -join ';';
                                                                AttributeUpdateBefore=$Before -join ';';
@@ -1097,27 +1105,27 @@ function Get-MIMExportLogDeltas
 
 						#ReferenceValue Attributes
 
-					  $FilteredLog.mmsml."directory-entries".delta|? {$_.'dn-attr'.name -eq $Attribute}|%{
+					  $FilteredLog.mmsml."directory-entries".delta|? {$_.'dn-attr'.name -eq $AttributeName}|%{
                                 $DN=$_.dn;`
                                 $primaryObjectClass=$_.'primary-objectclass';`
                                 $objectModType=$_.operation;`
-                                $scopedQuery=($_.'dn-attr'|? Name -eq $Attribute);`
+                                $scopedQuery=($_.'dn-attr'|? Name -eq $AttributeName);`
                                 $AttributeModificationType=(if($scopedQuery.operation -like $null){"objectAdd"}else{$scopedQuery.operation});`
                                 $AttributeType= "reference";`
                                 $AttributeMultiValued=$scopedQuery.multivalued;`
-                                $Add=($_.'dn-attr'|? {$_.name -eq $Attribute -and $_.operation -eq 'add'}).'dn-value';`
+                                $Add=($_.'dn-attr'|? {$_.name -eq $AttributeName -and $_.operation -eq 'add'}).'dn-value';`
                                 $AttributeValueOperation=$scopedQuery.'dn-value'.operation;`
-                                $Before=(($_.'dn-attr'|? {$_.name -eq $Attribute -and $_.operation -eq 'update'}).'dn-value'|? Operation -eq 'delete').dn;
-                                $After=(($_.'dn-attr'|? {$_.name -eq $Attribute -and $_.operation -eq 'update'}).'dn-value'|? Operation -eq 'add').dn;
+                                $Before=(($_.'dn-attr'|? {$_.name -eq $AttributeName -and $_.operation -eq 'update'}).'dn-value'|? Operation -eq 'delete').dn;
+                                $After=(($_.'dn-attr'|? {$_.name -eq $AttributeName -and $_.operation -eq 'update'}).'dn-value'|? Operation -eq 'add').dn;
                                 $Delete="";`
                                 $go=[pscustomobject][ordered]@{DN=$dn;
                                                                PrimaryObjectClass=$primaryObjectClass;
                                                                ObjectModificationType=$ObjectModType;
-                                                               AttributeName=$attribute;
+                                                               AttributeName=$attributeName;
                                                                AttributeType=$AttributeType;
                                                                AttributeMultiValued=$AttributeMultivalued
                                                                AttributeModificationType=$AttributeModificationType;
-                                                               AttributeScope=$AttributeScope;
+                                                               AttributeCategory=$AttributeCategory;
                                                                AttributeValueOperation=$AttributeValueOperation -join ';';
                                                                AttributeAdded=$add -join ';';
                                                                AttributeUpdateBefore=$Before -join ';';
